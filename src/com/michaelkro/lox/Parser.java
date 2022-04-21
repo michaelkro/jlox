@@ -5,6 +5,8 @@ import java.util.List;
 import static com.michaelkro.lox.TokenType.*;
 
 class Parser {
+  private static class ParseError extends RuntimeException {}
+
   private final List<Token> tokens;
   private int current = 0;
 
@@ -83,7 +85,9 @@ class Parser {
     }
 
     if (match(LEFT_PAREN)) {
-      // WIP
+      Expr expr = expression();
+      consume(RIGHT_PAREN, "Expect ')' after expression.");
+      return new Expr.Grouping(expr);
     }
   }
 
@@ -95,6 +99,12 @@ class Parser {
       }
     }
     return false;
+  }
+
+  private Token consume(TokenType type, String message) {
+    if (check(type)) return advance();
+
+    throw error(peek(), message);
   }
 
   private boolean check(TokenType type) {
@@ -117,5 +127,25 @@ class Parser {
 
   private Token previous() {
     return tokens.get(current - 1);
+  }
+
+  private ParseError error(Token token, String message) {
+    Lox.error(token, message);
+    return new ParseError();
+  }
+
+  private void synchronize() {
+    advance();
+    while (!isAtEnd()) {
+      if (previous().type == SEMICOLON) return;
+
+      switch (peek().type) {
+        case CLASS: case FOR: case FUN: case IF: case PRINT:
+        case RETURN: case VAR: case WHILE:
+          return;
+      }
+
+      advance();
+    }
   }
 }
